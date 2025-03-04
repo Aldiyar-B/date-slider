@@ -3,15 +3,9 @@
     <div class="date-sliders">
       <DateSlider
         minDate="2019-01-01"
-        maxDate="2020-12-31"
-        startDate="2019-06-01"
-        endDate="2020-09-01"
-      />
-      <DateSlider
-        minDate="2019-01-01"
-        maxDate="2026-12-31"
-        startDate="2021-06-01"
-        endDate="2025-09-01"
+        maxDate="2021-12-31"
+        startDate="2020-06-01"
+        endDate="2021-07-01"
       />
     </div>
   </div>

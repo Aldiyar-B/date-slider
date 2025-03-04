@@ -3,42 +3,37 @@
     <!-- Кнопки переключения -->
     <div class="view-toggle">
       <button
-        @click="sliderType = 'years'"
-        :class="{ active: sliderType === 'years' }"
+        @click="viewMode = 'years'"
+        :class="{ active: viewMode === 'years' }"
       >
-        Годы
+        Все года
       </button>
       <button
-        @click="sliderType = 'months'"
-        :class="{ active: sliderType === 'months' }"
+        @click="viewMode = 'months'"
+        :class="{ active: viewMode === 'months' }"
       >
         Месяцы
       </button>
     </div>
 
-    <div v-if="sliderType === 'years'" class="slider-container">
+    <div class="slider-container">
       <vue-slider
-        v-model="yearRange"
-        :min="minYear"
-        :max="maxYear"
+        v-model="dateRange"
+        :min="minIndex"
+        :max="maxIndex"
         :interval="1"
         :tooltip="'always'"
-        :marks="yearMarks"
-        :dotSize="10"
-      ></vue-slider>
-    </div>
-
-    <div v-if="sliderType === 'months'" class="slider-container">
-      <vue-slider
-        v-model="monthRange"
-        :min="minMonthIndex"
-        :max="maxMonthIndex"
-        :interval="1"
-        :tooltip="'always'"
-        :marks="filteredMonthMarks"
+        :marks="filteredMarks"
         :dotSize="10"
         :tooltip-formatter="formatTooltip"
-      ></vue-slider>
+        :tooltip-placement="'top'"
+      >
+        <template #tooltip="{ value }">
+          <div :data-tooltip="formatTooltip(value)">
+            {{ formatTooltip(value) }}
+          </div>
+        </template></vue-slider
+      >
     </div>
   </div>
 </template>
@@ -57,21 +52,24 @@ export default {
   },
   data() {
     return {
-      sliderType: "years",
+      viewMode: "months",
       minYear: new Date(this.minDate).getFullYear(),
       maxYear: new Date(this.maxDate).getFullYear(),
-      yearRange: [
-        Math.max(
-          new Date(this.startDate).getFullYear(),
-          new Date(this.minDate).getFullYear()
-        ),
-        Math.min(
-          new Date(this.endDate).getFullYear(),
-          new Date(this.maxDate).getFullYear()
-        ),
-      ],
-      monthRange: [],
       monthNames: [
+        "Январь",
+        "Февраль",
+        "Март",
+        "Апрель",
+        "Май",
+        "Июнь",
+        "Июль",
+        "Август",
+        "Сентябрь",
+        "Октябрь",
+        "Ноябрь",
+        "Декабрь",
+      ],
+      shortMonthNames: [
         "Янв",
         "Фев",
         "Мар",
@@ -85,72 +83,91 @@ export default {
         "Ноя",
         "Дек",
       ],
+      dateRange: [],
     };
   },
-  computed: {
-    minMonthIndex() {
-      return this.calculateMonthIndex(this.minYear, 1);
-    },
-    maxMonthIndex() {
-      return this.calculateMonthIndex(this.maxYear, 12);
-    },
-    yearMarks() {
-      let marks = {};
-      for (let i = this.minYear; i <= this.maxYear; i++) {
-        marks[i] = `${i}`;
+  mounted() {
+    // Безопасная установка значений
+    const startIndex = this.calculateIndex(new Date(this.startDate));
+    const endIndex = this.calculateIndex(new Date(this.endDate));
+
+    if (!isNaN(startIndex) && !isNaN(endIndex)) {
+      this.dateRange = [startIndex, endIndex];
+    } else {
+      console.error("Ошибка: dateRange содержит NaN", { startIndex, endIndex });
+      this.dateRange = [this.minIndex, this.maxIndex];
+    }
+  },
+  methods: {
+    calculateIndex(date) {
+      if (!(date instanceof Date) || isNaN(date.getTime())) {
+        console.error("Ошибка: calculateIndex получил некорректную дату", date);
+        return 0;
       }
-      return marks;
+      return (date.getFullYear() - this.minYear) * 12 + date.getMonth() + 1;
     },
-    monthMarks() {
+    parseIndex(index) {
+      const year = this.minYear + Math.floor((index - 1) / 12);
+      const month = ((index - 1) % 12) + 1;
+      return { month, year };
+    },
+    formatTooltip(value) {
+      const { month, year } = this.parseIndex(value);
+      return `${this.monthNames[month - 1]} ${year}`;
+    },
+  },
+  computed: {
+    minIndex() {
+      return this.calculateIndex(new Date(this.minDate));
+    },
+    maxIndex() {
+      return this.calculateIndex(new Date(this.maxDate));
+    },
+    marks() {
       let marks = {};
       for (let year = this.minYear; year <= this.maxYear; year++) {
         for (let month = 1; month <= 12; month++) {
-          let index = this.calculateMonthIndex(year, month);
+          let index = this.calculateIndex(new Date(year, month - 1));
+
           if (month === 1) {
-            marks[index] = `${year}`; // Январь заменяем на год
+            // Январь заменяем на год в любом режиме
+            marks[index] = `${year}`;
           } else {
-            marks[index] = `${this.monthNames[month - 1]}`;
+            // Остальные месяцы отображаем сокращенно
+            marks[index] = this.shortMonthNames[month - 1];
           }
         }
       }
       return marks;
     },
-    filteredMonthMarks() {
+    filteredMarks() {
       let marks = {};
       let counter = 0;
-      for (let index in this.monthMarks) {
-        counter++;
-        if (counter % 4 === 0 || this.monthMarks[index].length === 12) {
-          marks[index] = this.monthMarks[index];
+
+      for (let index in this.marks) {
+        let value = this.marks[index];
+
+        if (this.viewMode === "years") {
+          // В режиме "Годы" показываем только годы
+          if (value.length === 4) {
+            marks[index] = value;
+          }
+        } else {
+          // В режиме "Месяцы" показываем не все месяцы (каждый 3-й)
+          counter++;
+          if (value.length === 4 || counter % 5 === 0) {
+            marks[index] = value;
+          }
         }
       }
+
       return marks;
     },
-  },
-  methods: {
-    formatTooltip(value) {
-      const { month, year } = this.parseMonthIndex(value);
-      return `${this.monthNames[month - 1]}\n${year}`;
-    },
-    calculateMonthIndex(year, month) {
-      return (year - this.minYear) * 12 + month;
-    },
-    parseMonthIndex(index) {
-      const year = this.minYear + Math.floor((index - 1) / 12);
-      const month = ((index - 1) % 12) + 1;
-      return { month, year };
-    },
-  },
-  mounted() {
-    this.monthRange = [
-      this.calculateMonthIndex(this.yearRange[0], 1),
-      this.calculateMonthIndex(this.yearRange[1], 12),
-    ];
   },
 };
 </script>
 
-<style scoped>
+<style>
 .date-slider {
   max-width: 800px;
   margin: 30px auto;
@@ -161,7 +178,6 @@ export default {
   font-family: Arial, sans-serif;
 }
 
-/* Переключение между "Годы" и "Месяцы" */
 .view-toggle {
   display: flex;
   justify-content: flex-start;
@@ -177,66 +193,56 @@ export default {
   font-weight: bold;
   cursor: pointer;
   padding: 5px 15px;
-  color: #3a78b6;
+  color: #83bfed;
 }
 
 .view-toggle button.active {
-  color: #007bff;
+  color: #83bfed;
   text-decoration: underline;
 }
 
-/* Контейнер для слайдера */
 .slider-container {
   flex-direction: column;
   align-items: center;
   padding: 20px;
 }
 
-/* Основная линия слайдера */
 .vue-slider-rail {
   background: #e0e6f0;
   height: 6px;
   border-radius: 3px;
 }
 
-/* Активная линия слайдера */
 .vue-slider-process {
-  background: #3a78b6;
+  background: #83bfed;
   height: 6px;
   border-radius: 3px;
 }
 
-/* Ползунок */
 .vue-slider-dot {
   background: #ffffff;
-  border: 4px solid #3a78b6;
+  border: 4px solid #83bfed;
   width: 20px;
   height: 20px;
   border-radius: 50%;
   box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
 }
 
-/* Подсказки с датами */
 .vue-slider-dot-tooltip {
   background: #ffffff;
-  color: #3a78b6;
+  color: #83bfed;
   font-size: 14px;
   font-weight: bold;
   padding: 8px 12px;
   border-radius: 6px;
   box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
-  border: 2px solid #3a78b6;
 }
-
-/* Оформление текущего диапазона */
-.selected-range {
-  font-size: 18px;
-  font-weight: bold;
-  color: #3a78b6;
-  margin-top: 15px;
-  padding: 10px;
-  background: #e8f0fe;
-  border-radius: 6px;
-  display: inline-block;
+.vue-slider-mark-step {
+  display: none;
+}
+.vue-slider-dot-tooltip-top {
+  background-color: white;
+  color: #83bfed;
+  box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
 }
 </style>
