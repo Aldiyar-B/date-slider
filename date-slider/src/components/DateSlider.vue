@@ -153,7 +153,7 @@ export default {
             marks[index] = value;
           }
         } else {
-          // В режиме "Месяцы" показываем не все месяцы (каждый 3-й)
+          // В режиме "Месяцы" показываем не все месяцы (каждый 5-й)
           counter++;
           if (value.length === 4 || counter % 5 === 0) {
             marks[index] = value;
