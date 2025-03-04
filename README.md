@@ -11,13 +11,13 @@ cd date-slider
 
 Установите зависимости:
 
-**npm install
-**
+npm install
+
 
 # Запуск
 
 Запустите локальный сервер:
 
-**npm run serve
-**
+npm run serve
+
 После этого проект будет доступен по адресу http://localhost:8080/.
